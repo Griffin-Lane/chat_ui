@@ -1,0 +1,6 @@
+a2wsgi
+Flask==2.0.2
+gunicorn
+gradio
+openai
+fastapi
