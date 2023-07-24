@@ -86,5 +86,5 @@ demo = gr.Interface(
 )
 
 
-gr_app = gr.mount_gradio_app(fast_app, demo, path="/")
-app = ASGIMiddleware(gr_app)
+app = gr.mount_gradio_app(fast_app, demo, path="/")
+#app = ASGIMiddleware(gr_app)

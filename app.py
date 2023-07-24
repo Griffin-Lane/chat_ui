@@ -24,8 +24,36 @@ from a2wsgi import ASGIMiddleware
 # from predict import predict
 fast_app = FastAPI()
 
+class Source(str, Enum):                                                   
+    email = "email"                                                       
+    file = "file"                                                         
+    chat = "chat"                                                         
+    sql = "sql"   
+
+class Metadata(BaseModel):               
+    source: Optional[Source] = None      
+    source_id: Optional[str] = None     
+    url: Optional[str] = None           
+    created_at: Optional[str] = None     
+    author: Optional[str] = None        
+    database: Optional[str] = None      
+    tables: Optional[str] = None         
+    sql: Optional[str] = None           
+       
+class ChunkWithMetadata(BaseModel):                      
+    text: str                                            
+    metadata: Metadata                                   
+                                                          
+    def format_with_metadata(self) -> str:               
+        if self.metadata.tables:                         
+            return f"{self.metadata.tables}:{self.text}"  
+        return f"{self.metadata.source_id}:{self.text}"    
 
 
+class Answer(BaseModel):                                                                                   
+    content: str
+    metadata: List[ChunkWithMetadata]
+    
 def dispatch_payload(payload: Dict[str, Any]) -> Answer:
     headers: Dict[str, str] = {
         "Authorization": f"Bearer {BEARER_TOKEN}"
@@ -49,7 +77,6 @@ def create_payload(question: str) -> Dict[str, Any]:
         }
     }
     return payload
-
 
 def ask(question: str):
     payload = create_payload(question)
@@ -119,31 +146,9 @@ class Source(str, Enum):
     chat = "chat"
     sql = "sql"
 
-class Metadata(BaseModel):
-    source: Optional[Source] = None
-    source_id: Optional[str] = None
-    url: Optional[str] = None
-    created_at: Optional[str] = None
-    author: Optional[str] = None
-    database: Optional[str] = None
-    tables: Optional[str] = None
-    sql: Optional[str] = None
-
-class ChunkWithMetadata(BaseModel):
-    text: str
-    metadata: Metadata
-
-    def format_with_metadata(self) -> str:
-        if self.metadata.tables:
-            return f"{self.metadata.tables}:{self.text}"
-        return f"{self.metadata.source_id}:{self.text}"
-
 class Ask(BaseModel):
     question: str
 
-class Answer(BaseModel):
-    content: str
-    metadata: List[ChunkWithMetadata]
 
 
 @fast_app.post("/predict", response_model=Response)
@@ -168,17 +173,17 @@ def gradio_predict(question: str):
 
 
 demo = gr.Interface(
-    fn=gradio_predict,
+    fn=chatbot,
     inputs=gr.Textbox(
-        label="Ask a question", placeholder="What is the capital of France?"
+        label="Ask a question about the data", placeholder="What is BASEL III?"
     ),
-    outputs=[gr.Textbox(label="Answer"), gr.Number(label="Score")],
+    outputs=[gr.Textbox(label="Answer")], #, gr.Number(label="Score")],
     allow_flagging="never",
 )
 
 
-gr_app = gr.mount_gradio_app(fast_app, demo, path="/")
-app = ASGIMiddleware(gr_app)
+app = gr.mount_gradio_app(fast_app, demo, path="/")
+#app = ASGIMiddleware(gr_app)
 
 
 
